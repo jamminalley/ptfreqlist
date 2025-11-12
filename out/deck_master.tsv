@@ -1,0 +1,6 @@
+#separator: Tab
+#notetype: Portuguese (EP) – Frequency
+#deck: Portuguese::Frequency Master
+#columns: Rank	Lemma_PT	POS	Gloss_EN	Variety	Register_Flags	Range_Blocks	Raw_Freq	Example_PT	Example_EN	Freq_Band	Thematic_Source	Tags
+135	amigo	nm	friend	EP	+s -a	34	250	O Pedro é meu amigo desde a infância.	Pedro has been my friend since childhood.	0001-0500	People	freq::0001-0500 freq500::0001-0500 freq1000::0001-0500 register::plus_spoken register::minus_academic variety::EP pos::noun.masc
+12	ser	v	to be		+n +a	50	5000	Isto é muito importante.	This is very important.	0001-0500		freq::0001-0500 freq500::0001-0500 freq1000::0001-0500 register::plus_newspaper register::plus_academic pos::verb

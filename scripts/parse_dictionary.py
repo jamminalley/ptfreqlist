@@ -22,7 +22,8 @@ from utils import (
 )
 
 app = typer.Typer(
-    help="Parse 'A Frequency Dictionary of Portuguese' PDF into an Anki-ready TSV.")
+    help="Parse 'A Frequency Dictionary of Portuguese' PDF into an Anki-ready TSV."
+)
 
 # --- Regex placeholders (fill these out during implementation) ---
 # Notes:
@@ -30,7 +31,8 @@ app = typer.Typer(
 # - Example lines: Portuguese sentence (line), then English translation (next line)
 # - Frequency/register: "RANGE | RAWFREQ  +s -a" (numbers + optional +/- flags)
 HEADER_RE = re.compile(
-    r"^(?P<rank>\d+)\s+(?P<lemma>.+?)\s+(?P<pos>\w{1,4})\s+(?P<gloss>.+?)(?:\s+\[(?P<variety>EP|BP)\])?$")
+    r"^(?P<rank>\d+)\s+(?P<lemma>.+?)\s+(?P<pos>\w{1,4})\s+(?P<gloss>.+?)(?:\s+\[(?P<variety>EP|BP)\])?$"
+)
 FREQ_RE = re.compile(
     r"(?P<range>\d+)\s*\|\s*(?P<raw>\d+)(?P<flags>(?:\s+[+\-][sfna])*)")
 
@@ -52,6 +54,10 @@ def load_config(cfg_path: Path) -> dict:
 
 
 def compose_band_tags(rank: int, bands: List[Tuple[int, int]], families: List[str]) -> List[str]:
+    """
+    Produce one default freq band tag (freq::0001-0500) and optional family mirrors
+    like freq500::0001-0500, freq1000::0001-1000, etc., using the same interval.
+    """
     tags = []
     band = compose_freq_band(rank, bands)
     if band != "NA":
@@ -135,6 +141,7 @@ def build_dataframe(entries: List[dict], cfg: dict) -> pd.DataFrame:
 
 
 def write_tsv_with_anki_header(df: pd.DataFrame, cfg: dict, out_path: Path) -> None:
+    # Prepare header block
     sep = cfg.get("anki", {}).get("separator", "Tab")
     notetype = cfg.get("anki", {}).get(
         "notetype", "Portuguese (EP) – Frequency")
@@ -142,20 +149,34 @@ def write_tsv_with_anki_header(df: pd.DataFrame, cfg: dict, out_path: Path) -> N
     columns = list(df.columns)
     header = anki_header(sep, notetype, deck, columns)
 
+    # Sanitize fields (keep HTML-friendly <br> for Anki display)
     cleaned = df.copy()
     for col in cleaned.columns:
         cleaned[col] = cleaned[col].astype(str).map(sanitize_tsv_field)
 
-    tsv = cleaned.to_csv(sep="\t", index=False, line_terminator="\n")
+    # IMPORTANT: don't output a second header row; Anki uses #columns:
+    tsv = cleaned.to_csv(sep="\t", index=False,
+                         header=False, lineterminator="\n")
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8", newline="") as f:
-        f.write(header)
-        f.write(tsv)
+        f.write(header)   # our Anki header block
+        f.write(tsv)      # data rows only
 
 
 def write_qc_sample(df: pd.DataFrame, qc_path: Path, n: int = 50) -> None:
     sample = df.sample(n=min(n, len(df)), random_state=42) if len(
         df) else df.head(0)
+
+    # Optional: make Register_Flags Excel-friendly for viewing (keeps TSV original)
+    if "Register_Flags" in sample.columns and len(sample):
+        sample = sample.copy()
+        sample["Register_Flags"] = (
+            sample["Register_Flags"]
+            .str.replace("+", "plus_", regex=False)
+            .str.replace("-", "minus_", regex=False)
+        )
+
     qc_path.parent.mkdir(parents=True, exist_ok=True)
     sample.to_csv(qc_path, index=False, encoding="utf-8")
 
@@ -170,6 +191,8 @@ def parse(
                             help="Optional QC sample CSV"),
     cfg: Path = typer.Option("config.yaml", "--cfg",
                              help="Path to config.yaml"),
+    demo: bool = typer.Option(
+        False, "--demo", help="Generate a few demo entries instead of parsing"),
 ):
     """
     Parse the PDF and export an Anki-ready TSV with headers.
@@ -182,11 +205,45 @@ def parse(
         raw_text = read_pdf_text(pdf)
     except Exception as e:
         typer.secho(
-            f"[warn] PDF read failed ({e}). Continuing with empty text for a dry run.", fg=typer.colors.YELLOW)
+            f"[warn] PDF read failed ({e}). Continuing with empty text for a dry run.",
+            fg=typer.colors.YELLOW,
+        )
         raw_text = ""
 
-    typer.echo("[info] Parsing entries (stub implementation)")
-    entries = parse_entries(raw_text)
+    if demo:
+        typer.secho("[demo] Using demo entries (no PDF parsing).",
+                    fg=typer.colors.CYAN)
+        entries = [
+            {
+                "rank": 135,
+                "lemma": "amigo",
+                "pos": "nm",
+                "gloss": "friend",
+                "variety": "EP",
+                "example_pt": "O Pedro é meu amigo desde a infância.",
+                "example_en": "Pedro has been my friend since childhood.",
+                "range_blocks": 34,
+                "raw_freq": 250,
+                "flags": "+s -a",
+                "theme": "People",
+            },
+            {
+                "rank": 12,
+                "lemma": "ser",
+                "pos": "v",
+                "gloss": "to be",
+                "variety": "",
+                "example_pt": "Isto é muito importante.",
+                "example_en": "This is very important.",
+                "range_blocks": 50,
+                "raw_freq": 5000,
+                "flags": "+n +a",
+                "theme": "",
+            },
+        ]
+    else:
+        typer.echo("[info] Parsing entries (stub implementation)")
+        entries = parse_entries(raw_text)
 
     typer.echo(f"[info] Parsed {len(entries)} entries; building DataFrame")
     df = build_dataframe(entries, cfg_data)
@@ -197,8 +254,7 @@ def parse(
     typer.echo(f"[info] Writing QC sample to {qc}")
     write_qc_sample(df, Path(qc))
 
-    typer.secho(
-        "[done] Finished. Fill in parse_entries() next to extract real rows.", fg=typer.colors.GREEN)
+    typer.secho("[done] Finished.", fg=typer.colors.GREEN)
 
 
 if __name__ == "__main__":
