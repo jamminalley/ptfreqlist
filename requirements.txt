@@ -1,0 +1,6 @@
+pypdf
+pdfminer.six
+regex
+pandas
+typer
+pyyaml

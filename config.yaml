@@ -1,0 +1,53 @@
+# Project configuration for building an Anki-ready TSV from the frequency dictionary PDF.
+# Change values here (not in code) to adjust behavior.
+
+freq_bands:
+  - [1, 500]
+  - [501, 1000]
+  - [1001, 1500]
+  - [1501, 2000]
+  - [2001, 2500]
+  - [2501, 3000]
+  - [3001, 3500]
+  - [3501, 4000]
+  - [4001, 4500]
+  - [4501, 5000]
+
+# Policy for Brazilian/European variety:
+# - "EP_only": keep EP entries, drop BP-dominant entries (keep unmarked).
+# - "keep_all": keep all and tag variety.
+variety_policy: "EP_only"
+
+# Optional: create multiple frequency tag families simultaneously (flexible study later).
+# Example: ["freq500", "freq1000"]. If empty or omitted, only "freq" is used.
+freq_tag_families: ["freq500", "freq1000"]
+
+# POS normalization map (expand/adjust as needed).
+pos_map:
+  nm: noun.masc
+  nf: noun.fem
+  n: noun
+  adj: adjective
+  v: verb
+  adv: adverb
+  prep: preposition
+  conj: conjunction
+  pron: pronoun
+  num: numeral
+
+# Register code → human tag root. Will be prefixed with plus_/minus_.
+register_tags:
+  s: spoken
+  f: fiction
+  n: newspaper
+  a: academic
+
+anki:
+  deck: "Portuguese::Frequency Master"
+  notetype: "Portuguese (EP) – Frequency"
+  separator: "Tab"   # Tab or Comma; script will set Anki header accordingly.
+
+# File names (you can change these).
+io:
+  out_tsv: "out/deck_master.tsv"
+  qc_csv: "out/qc_sample.csv"
